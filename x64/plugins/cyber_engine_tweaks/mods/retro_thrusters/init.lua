@@ -2,57 +2,57 @@ RetroThrusters = {
     description = "Non quest-bound retrothrusters!"
 }
 
-removable = false
+_isLoaded = false
 
 function RetroThrusters:new()
 
 	registerForEvent("onInit", function(delta)
-		local isLoaded = Game.GetPlayer() and Game.GetPlayer():IsAttached() and not GetSingleton('inkMenuScenario'):GetSystemRequestsHandler():IsPreGame()
+		_isLoaded = Game.GetPlayer() and Game.GetPlayer():IsAttached() and not GetSingleton('inkMenuScenario'):GetSystemRequestsHandler():IsPreGame()
 		Observe('QuestTrackerGameController', 'OnInitialize', function()
-		    if not isLoaded then
+		    if not _isLoaded then
 		        print('Game Session Started')
-		        isLoaded = true
+		        _isLoaded = true
 
-		        -- TODO: If thrusters not equiped / no thrusters in inventory (discord channel cetluascripting: keyword inventory):
-		        --Game.AddToInventory("Items.q115_thrusters",1) --inventory seems to have unlimited space so nothing to worry there i think
-		        
-    	    	--	local es = Game.GetScriptableSystemsContainer():Get(CName.new('EquipmentSystem'))
-    	    	--	local activeFeet = es:GetActiveItem(Game.GetPlayer(), 'Feet')
-				--	local feetTweakDBID = activeFeet.id
-				--	local displayNameTweakDBID = TweakDBID.new(feetTweakDBID, '.displayName')
-				--	local displayNameLocKey = Game['TDB::GetLocKey;TweakDBID'](displayNameTweakDBID)
-				--	print(Game.GetLocalizedTextByKey(displayNameLocKey))
+		    	-- check if player already owns thrusters
+		    	thrusters = 'Items.q115_thrusters'
+    			local thrustersTDBID = TweakDBID.new(thrusters)
+    			local itemFound = false
+	
+				-- check inventory (worn slot is included in GetItemList)  		
+    			local success, items = Game.GetTransactionSystem():GetItemList(Game.GetPlayer())
+			    for _, itemData in ipairs(items) do
+			        if tostring(itemData:GetID().id) == tostring(thrustersTDBID) then
+			            itemFound = true
+			            print('Player already owns removable RetroThrusters!')
+			            break
+			        end
+			    end
+	
+    			-- add the item to the inventory if player didn't own thrusters
+    			if not itemFound then
+    				-- add RetroThrusters to inventory
+    			    Game.AddToInventory(thrusters, 1)
+
+    			   	-- make added RetroThrusters unequipable
+    			    local success, items = Game.GetTransactionSystem():GetItemList(Game.GetPlayer())
+			    	for _, itemData in ipairs(items) do
+			    	    if tostring(itemData:GetID().id) == tostring(thrustersTDBID) then
+			    	        itemData:RemoveDynamicTag("UnequipBlocked")
+							itemData:RemoveDynamicTag("Quest")
+			    	        print('Added removable RetroThrusters to inventory!')
+			    	        break
+			    	    end
+			    	end
+    			end
 		    end
 		end)
 		
 		Observe('QuestTrackerGameController', 'OnUninitialize', function()
 		    if Game.GetPlayer() == nil then
 		        print('Game Session Ended')
-		        isLoaded = false
+		        _isLoaded = false
 		    end
 		end)
-	end)
-
-	registerForEvent("onUpdate", function(delta)
-		if not removable and isLoaded then
-			removable = true
-			retrothrustersItemID = GetSingleton('gameItemID'):FromTDBID(TweakDBID.new('Items.q115_thrusters'))
-	        print('RetroThrusterss in backpack: ')
-	        print(Game.GetTransactionSystem():GetItemQuantity(Game.GetPlayer(), retrothrustersItemID))
-			
-			local equippedItemID = Game.GetScriptableSystemsContainer():Get('EquipmentSystem'):GetItemInEquipSlot(Game.GetPlayer(), 'Feet', 0)
-			if equippedItemID then
-				print('feet slot has something equiped')
-				local expectedTweakDBID = TweakDBID.new('Items.q115_thrusters')
-				if tostring(equippedItemID.id) == tostring(expectedTweakDBID) then
-			    	print('Thrusters equiped')
-			    	local feetItemData = Game.GetTransactionSystem():GetItemInSlot(Game.GetPlayer(), TweakDBID.new("AttachmentSlots.Feet")):GetItemData()
-					feetItemData:RemoveDynamicTag("UnequipBlocked")
-					feetItemData:RemoveDynamicTag("Quest")
-					print("Can now unequip thrusters")
-				end
-			end
-		end
 	end)
 end
 
